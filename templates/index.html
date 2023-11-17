@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask와 함께하는 카카오 맵</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=63f4fa1c971700bb04c87fd820911d05"></script>
+</head>
+<body>
+    <header>
+        <h1>서울 실시간 </h1>
+    </header>
+    <main>
+        <div id="map">
+            <div id="filter">
+                <div>
+                    <h2> 위험도 </h2>
+                </div>
+                <br>
+                <div>
+                    <img src="/static/red_maker.png" class="img_style">
+                    <label><input type="checkbox" id="blueCheckbox" checked> 위험 </label>
+                </div>
+                <div>
+                    <img src="/static/yellow_maker.png" class="img_style">
+                    <label><input type="checkbox" id="blueCheckbox" checked> 주의 </label>
+                </div>
+                <div>
+                    <img src="/static/green_maker.png" class="img_style">
+                    <label><input type="checkbox" id="blueCheckbox" checked> 보통 </label>
+                </div>
+                <div>
+                    <img src="/static/blue_maker.png" class="img_style">
+                    <label><input type="checkbox" id="blueCheckbox" checked> 안전 </label>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        const map = new kakao.maps.Map(document.getElementById('map'), {
+            center: new kakao.maps.LatLng(37.5665, 126.9780), // 서울 좌표
+            level: 8,
+            backgroundImage: 'https://map.kakao.com/link/map/1160205007'
+        });
+
+        const markers = [];
+
+        // 데이터베이스에서 가져온 결과 데이터
+        const result = [
+            {% for row in result %}
+            { name: '{{ row[0] }}', latitude: {{ row[1] }}, longitude: {{ row[2] }}, safe_score: {{row[6]}}, time: '{{ row[4] }}', borough: '{{ row[3] }}', di: '{{ row[5] }}' },
+            {% endfor %}
+        ];
+
+        result.forEach(data => {
+            const markerPosition = new kakao.maps.LatLng(data.latitude, data.longitude);
+            
+            const score = data.safe_score;
+            // 안전도에 따라 다른 색상의 마커 아이콘 설정
+            let markerImage;
+            if ((3 <= score) && (score < 7)) {
+                markerImage = new kakao.maps.MarkerImage('/static/blue_maker.png', new kakao.maps.Size(35, 35), { offset: new kakao.maps.Point(15, 45) });
+            } else if ((7 <= score) && (score < 9)) {
+                markerImage = new kakao.maps.MarkerImage('/static/green_maker.png', new kakao.maps.Size(35, 35), { offset: new kakao.maps.Point(15, 45) });
+            } else if ((9 <= score) && (score < 11)) {
+                markerImage = new kakao.maps.MarkerImage('/static/yellow_maker.png', new kakao.maps.Size(35, 35), { offset: new kakao.maps.Point(15, 45) });
+            } else if ((11 <= score) && (score < 13)) {
+                markerImage = new kakao.maps.MarkerImage('/static/red_maker.png', new kakao.maps.Size(35, 35), { offset: new kakao.maps.Point(15, 45) });
+            }
+
+            const marker = new kakao.maps.Marker({
+                position: markerPosition,
+                title: data.name,
+                image: markerImage,  // 위에서 정의한 이미지 사용
+            });
+
+            const infoData = {
+                info1: data.name,
+                info2: data.safe_score,
+                info3: data.time,
+                info4: data.borough,
+                info5: data.di
+            };
+
+            var iwRemoveable = true;
+
+            const infowindow = new kakao.maps.InfoWindow({
+                content: 
+                `<div class="infowindow">
+                    <strong>${infoData.info1}</strong><br>
+                    <br>
+                    위험도: ${infoData.info2}<br>
+                    시간: ${infoData.info3}<br>
+                    자치구: ${infoData.info4}<br>
+                    혼잡도: ${infoData.info5}
+                </div>`
+            });
+
+            // 마커에 마우스오버 이벤트 추가
+            kakao.maps.event.addListener(marker, 'click', function() {
+                map.setCursor('pointer'); // 커서를 손가락으로 변경
+
+                // 마커 위에 인포윈도우 표시
+                infowindow.open(map, marker);
+            });
+
+            // 마커에 마우스아웃 이벤트 추가
+            kakao.maps.event.addListener(marker, 'mouseover', function() {
+                map.setCursor('pointer'); // 커서를 손가락으로 변경
+
+                // 마커 위에 인포윈도우 표시
+                infowindow.open(map, marker);
+            });
+            
+            kakao.maps.event.addListener(marker, 'mouseout', function() {
+                map.setCursor(''); // 커서를 손가락으로 변경
+
+                // 마커 위에 인포윈도우 표시
+                infowindow.close();
+            });
+            // 지도에 마커 표시
+            marker.setMap(map);
+
+            // 마커를 markers 배열에 저장
+            markers.push(marker);
+        });
+    </script>
+</body>
+</html>
